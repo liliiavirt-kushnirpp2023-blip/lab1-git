@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { useWorkouts } from '../../components/useWorkouts'
+import { useWorkouts } from '../useWorkouts'
 
 describe('useWorkouts', () => {
   let workouts, addWorkout, removeWorkout, toggleWorkout, getByType, getTotalMinutes, completedCount, totalCount // eslint-disable-line no-unused-vars
