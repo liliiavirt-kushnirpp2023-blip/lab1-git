@@ -39,12 +39,19 @@
       </button>
     </form>
 
+    <button
+      v-if="showUrgentFilter"
+      class="urgent-btn"
+    >
+    Тільки термінові
+    </button>
+
     <p
       v-if="workouts.length === 0"
       data-testid="empty-message"
       class="empty"
     >
-      Тренувань ще немає. Додай перше! 
+      Тренувань ще немає. Додай перше!
     </p>
 
     <ul class="list">
@@ -57,7 +64,7 @@
         <div class="card-info">
           <span
             class="card-type"
-            @click="toggleWorkout(workout.id)"
+            @click="handleToggle(workout.id)"
           >
             {{ workout.type }}
           </span>
@@ -66,7 +73,7 @@
         <button
           data-testid="delete-button"
           class="delete"
-          @click="removeWorkout(workout.id)"
+          @click="handleRemove(workout.id)"
         >
           ✕
         </button>
@@ -78,7 +85,7 @@
       class="stats"
       data-testid="stats"
     >
-      <span>✅ {{ completedCount }} / {{ totalCount }} виконано</span>
+      <span>{{ completedCount }} / {{ totalCount }} виконано</span>
       <span>⏱ {{ getTotalMinutes() }} хв загалом</span>
     </div>
   </div>
@@ -88,9 +95,11 @@
 </template>
 
 <script setup>
-const appStatus = import.meta.env.VITE_APP_STATUS
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
+import posthog from 'posthog-js'
 import { useWorkouts } from './composables/useWorkouts'
+
+const appStatus = import.meta.env.VITE_APP_STATUS
 
 const { workouts, addWorkout, removeWorkout, toggleWorkout,
         getTotalMinutes, completedCount, totalCount } = useWorkouts()
@@ -98,12 +107,35 @@ const { workouts, addWorkout, removeWorkout, toggleWorkout,
 const newType = ref('')
 const newDuration = ref('')
 const newDate = ref('')
+const showUrgentFilter = ref(false)
+
+onMounted(() => {
+  posthog.onFeatureFlags(() => {
+    showUrgentFilter.value = posthog.isFeatureEnabled('show-urgent-filter')
+  })
+})
 
 function handleAdd() {
-  addWorkout(newType.value, newDuration.value, newDate.value)
-  newType.value = ''
-  newDuration.value = ''
-  newDate.value = ''
+  const result = addWorkout(newType.value, newDuration.value, newDate.value)
+  if (result) {
+    posthog.capture('workout_created', {
+      type: newType.value,
+      duration: newDuration.value,
+    })
+    newType.value = ''
+    newDuration.value = ''
+    newDate.value = ''
+  }
+}
+
+function handleRemove(id) {
+  removeWorkout(id)
+  posthog.capture('workout_deleted')
+}
+
+function handleToggle(id) {
+  toggleWorkout(id)
+  posthog.capture('workout_completed')
 }
 </script>
 
@@ -170,6 +202,22 @@ h1 {
 
 .btn:hover { background: #88aa00; }
 
+.urgent-btn {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 16px;
+  background: #ff6b35;
+  color: white;
+  font-size: 1rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.urgent-btn:hover { background: #e55a25; }
+
 .empty {
   text-align: center;
   color: #99bb55;
@@ -225,6 +273,7 @@ h1 {
   color: #5a8a00;
   font-weight: 500;
 }
+
 .footer {
   text-align: center;
   margin-top: 20px;
