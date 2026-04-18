@@ -37,13 +37,22 @@
       >
         + Додати
       </button>
+
+      <!-- Кнопка тестування Sentry -->
+      <button
+        type="button"
+        class="btn-error"
+        @click="throwError"
+      >
+        🐛 Викликати помилку (Sentry Test)
+      </button>
     </form>
 
     <button
       v-if="showUrgentFilter"
       class="urgent-btn"
     >
-    Тільки термінові
+      Тільки термінові
     </button>
 
     <p
@@ -97,6 +106,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import posthog from 'posthog-js'
+import * as Sentry from '@sentry/vue'
 import { useWorkouts } from './composables/useWorkouts'
 
 const appStatus = import.meta.env.VITE_APP_STATUS
@@ -110,8 +120,17 @@ const newDate = ref('')
 const showUrgentFilter = ref(false)
 
 onMounted(() => {
+  // Feature Flag PostHog
   posthog.onFeatureFlags(() => {
     showUrgentFilter.value = posthog.isFeatureEnabled('show-urgent-filter')
+  })
+
+  // Контекст користувача для Sentry
+  Sentry.setUser({
+    id: '12345',
+    email: 'liliia.virt-kushnir.pp.2023@lpnu.ua',
+    username: 'liliiavirt',
+    segment: 'student_user'
   })
 })
 
@@ -136,6 +155,25 @@ function handleRemove(id) {
 function handleToggle(id) {
   toggleWorkout(id)
   posthog.capture('workout_completed')
+}
+
+// Функція тестування Sentry
+function throwError() {
+  Sentry.addBreadcrumb({
+    message: 'Користувач натиснув кнопку тестування помилки',
+    category: 'user',
+    data: {
+      timestamp: new Date().toISOString(),
+      action: 'test_error_button_clicked',
+      workoutsCount: workouts.value.length
+    }
+  })
+
+  Sentry.captureException(
+    new Error('Sentry Test Error: Тестова помилка трекера тренувань!')
+  )
+
+  throw new Error('Sentry Test Error: Тестова помилка трекера тренувань!')
 }
 </script>
 
@@ -201,6 +239,20 @@ h1 {
 }
 
 .btn:hover { background: #88aa00; }
+
+.btn-error {
+  padding: 12px;
+  background: #e74c3c;
+  color: white;
+  font-size: 1rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-error:hover { background: #c0392b; }
 
 .urgent-btn {
   width: 100%;
